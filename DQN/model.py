@@ -1,5 +1,7 @@
 import numpy as np
 
+from shared.map import Map
+
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
@@ -14,64 +16,41 @@ class Model(nn.Module):
         self.device = "cpu"
 
         self.shared = nn.Sequential(
-            nn.Linear(20, 64),
-            nn.ReLU(),
-            nn.Linear(64, 64),
-            nn.ReLU(),
-            nn.Linear(64, 64),
+            #nn.Linear(329, 256),
+            nn.Linear(21, 32),
             nn.ReLU(),
         )
 
         self.values = nn.Sequential(
-            nn.Linear(64, 64),
-            nn.ReLU(),
-            nn.Linear(64, 1)
+            nn.Linear(32, 1)
         )
 
 
         self.advantages = nn.Sequential(
-            nn.Linear(64, 64),
-            nn.ReLU(),
-            nn.Linear(64, 64),
-            nn.ReLU(),
-            nn.Linear(64, 4)
+            nn.Linear(32, 4),
         )
 
 
     def set_config(self, config_dict):
         self.config = Configuration(config_dict)
 
-    def translate_coordinates(self, player_head, position):
-        row, column = row_col(position, self.config.columns)
-
-        head_row, head_column = row_col(player_head, self.config.columns)
-
-        return row - head_row, column - head_column
-
     def transform_input_single(self, observation):
-        output = []
-
         observation = Observation(observation)
-        player_index = observation.index
-        player_head = observation.geese[player_index][0]
 
+        output = []
         output.append([observation.step])
         output.append([40 - observation.step % 40])
+        output.append([len(observation.geese[observation.index])])
 
-        for i in range(4):
-            if i != player_index:
-                if len(observation.geese[i]) == 0:
-                    observation.geese[i].append(38) #38 is the middle
-
-                output.append(self.translate_coordinates(player_head, observation.geese[i][0]))
-                output.append(self.translate_coordinates(player_head, observation.geese[i][-1]))
-        
-        output.append(self.translate_coordinates(player_head, observation.geese[player_index][-1]))
-
+        map = Map(observation, self.config.columns)
         for i in range(2):
-            output.append(self.translate_coordinates(player_head, observation.food[i]))
+            output.append(map.translate(observation.food[i]))
 
-        return np.concatenate(output)
+        heads_tails = map.get_heads_tails()
+        maps = map.build_maps()
+
+        #return np.concatenate([np.concatenate(output), np.concatenate(heads_tails), maps])
+        return np.concatenate([np.concatenate(output), np.concatenate(heads_tails)])
 
 
     def transform_input(self, observations):
@@ -81,11 +60,18 @@ class Model(nn.Module):
         
         return torch.tensor(output, device=self.device, dtype=torch.float)
 
-    def forward(self, observation):
+    def forward(self, observation, invalid_actions):
         transformed_input = self.transform_input(observation)
         out = self.shared(transformed_input)
+
 
         advantages = self.advantages(out)
         values = self.values(out)
 
-        return advantages, values
+        for i in range(len(invalid_actions)):
+            if invalid_actions[i] != None:
+                advantages[i][invalid_actions[i]] = -np.inf
+
+        advantages = F.softmax(advantages, dim=1)
+
+        return advantages.float(), values.float()

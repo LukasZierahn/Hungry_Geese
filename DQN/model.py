@@ -16,18 +16,23 @@ class Model(nn.Module):
         self.device = "cpu"
 
         self.shared = nn.Sequential(
-            #nn.Linear(329, 256),
-            nn.Linear(21, 32),
+            nn.Linear(329, 256),
             nn.ReLU(),
-        )
+            nn.Linear(256, 128),
+            nn.ReLU(),
+            nn.Linear(128, 64),
+            nn.ReLU(),
+            )
 
         self.values = nn.Sequential(
-            nn.Linear(32, 1)
+            nn.Linear(64, 1)
         )
 
 
         self.advantages = nn.Sequential(
-            nn.Linear(32, 4),
+            nn.Linear(64, 64),
+            nn.ReLU(),
+            nn.Linear(64, 4)
         )
 
 
@@ -49,8 +54,8 @@ class Model(nn.Module):
         heads_tails = map.get_heads_tails()
         maps = map.build_maps()
 
-        #return np.concatenate([np.concatenate(output), np.concatenate(heads_tails), maps])
-        return np.concatenate([np.concatenate(output), np.concatenate(heads_tails)])
+        return np.concatenate([np.concatenate(output), np.concatenate(heads_tails), maps])
+        #return np.concatenate([np.concatenate(output), np.concatenate(heads_tails)])
 
 
     def transform_input(self, observations):
@@ -74,4 +79,5 @@ class Model(nn.Module):
 
         advantages = F.softmax(advantages, dim=1)
 
-        return advantages.float(), values.float()
+        return (advantages - advantages.mean() + values).float(), values.float()
+        #return advantages.float(), values.float()

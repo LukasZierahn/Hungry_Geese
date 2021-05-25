@@ -64,8 +64,8 @@ class MemoryManager(object):
         self.last_episode = []
         self.add_memory(new_memories[-1], adjusted_reward)
         for i in range(2, len(new_memories)):
-            adjusted_reward = adjusted_reward * self.gamma + new_memories[-i][1]
-            self.add_memory(new_memories[-i], adjusted_reward)
+            adjusted_reward = adjusted_reward * self.gamma
+            self.add_memory(new_memories[-i], len(new_memories[-i][self.INDEX.observation].geese[last_observation.index]))
         
         return adjusted_reward
     

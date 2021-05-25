@@ -29,7 +29,7 @@ class Agent(object):
                 while action == None or action == invalid_action:
                     action = np.random.choice(4)
             else:
-                action = self.get_model_move(observation, invalid_action)
+                action = self.get_greedy_move(observation, invalid_action)
         else:
             action = self.get_greedy_move(observation, invalid_action)
         

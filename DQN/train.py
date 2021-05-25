@@ -12,7 +12,9 @@ from shared.generate_episode import generate_episode
 def train(agent, memory_manager, optimizer, device, trainer, params):
     best_params = 0
     highest_reward = -np.inf
-
+    
+    
+    criterion = nn.MSELoss()
     sampeling_count = params["sampeling_count"]
     batch_size = params["batch_size"]
     training_time = params["training_time"]
@@ -34,8 +36,8 @@ def train(agent, memory_manager, optimizer, device, trainer, params):
             best_params = agent.model.state_dict()
 
         for j in range(sampeling_count):
-            #batch = memory_manager.get_batch(batch_size)
-            batch = memory_manager.last_episode
+            batch = memory_manager.get_batch(batch_size)
+            #batch = memory_manager.last_episode
 
             if batch == False:
                 print("skipped", i)
@@ -49,31 +51,24 @@ def train(agent, memory_manager, optimizer, device, trainer, params):
             done = torch.tensor([x[memory_manager.INDEX.done] for x in batch], device=device)
             observation = [x[memory_manager.INDEX.observation] for x in batch]
 
-            if len(old_observation) == 0:
-                continue
-
-            policy_old, value_old = agent.model.forward(old_observation, invalid_actions)
-            #policy, value = agent.model.forward(observation)
-
-            #reward = (reward - reward.mean()) / (reward.std() + 1e-7)
-            advantages = (reward - value_old).reshape(-1)
-
-            policy_losses = []
-            value_losses = []
-            for k in range(len(policy_old)):
-                #print(policy_old[k][actions[k]])
-                #print(-torch.log(policy_old[k][actions[k]]) * advantages[k])
-                categorical = torch.distributions.Categorical(policy_old[k])
-                policy_losses.append(-categorical.log_prob(actions[k]) * advantages[k]) 
-
-                value_losses.append(F.smooth_l1_loss(value_old[k], reward[k]))
-
             optimizer.zero_grad()
 
-            loss = torch.stack(policy_losses).float().sum() + torch.stack(value_losses).float().sum()
-            print("loss", loss)
-            loss.backward()
+            target = torch.zeros(batch_size, 4)      
+            for index_batch in range(batch_size):
+                if done[index_batch]:
+                    target[index_batch, actions[index_batch]] = reward[index_batch]
+                else:
+                    policy, value = agent.model.forward([observation[index_batch]], [(actions[index_batch] + 2) % 4])
+                    target[index_batch, actions[index_batch]] = reward[index_batch] + memory_manager.gamma * torch.max(policy[0])
 
+            estimate = torch.zeros(batch_size, 4)
+            policy_old, value_old = agent.model.forward(old_observation, invalid_actions)
+
+            for index_batch in range(batch_size):
+                estimate[index_batch, actions[index_batch]] = policy_old[index_batch, actions[index_batch]]
+
+            loss = criterion(target, estimate)
+            loss.backward()
             optimizer.step()
         
         print()

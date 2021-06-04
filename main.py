@@ -1,6 +1,6 @@
 import sys
 import os.path
-from kaggle_environments.envs.hungry_geese.hungry_geese import Observation, Configuration, Action, row_col
+from kaggle_environments.envs.hungry_geese.hungry_geese import Configuration, Action, row_col
 import torch
 
 kaggel = os.path.isfile("/kaggle_simulations/agent/DQN/model") 
@@ -8,8 +8,8 @@ kaggel = os.path.isfile("/kaggle_simulations/agent/DQN/model")
 # if you have many scripts add this line before you import them
 if kaggel:
     sys.path.append('/kaggle_simulations/agent/') 
-from DQN.DQN_agent import Agent
-from DQN.model import Model
+from A3C.agent import Agent
+from A3C.model import Model
 
 working_directory = "DQN/model"
 if kaggel:

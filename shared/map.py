@@ -17,11 +17,19 @@ class Map(object):
                 buffer.append(self.coord_to_abs(*self.translate(observation.geese[i][j])))
             
             self.geese.append(buffer)
-            
-    def translate(self, position):
+        
+
+        self.food = []
+        for food in observation.food:
+            self.food.append(self.translate(food))
+
+    def translate(self, position, zero_center=False):
         row, column = row_col(position, self.columns)
 
         head_row, head_column = row_col(self.player_head, self.columns)
+
+        if zero_center:
+            return (row - head_row + 3) % 7 - 3, (column - head_column + 5) % 11 - 5
 
         return (row - head_row + 3) % 7, (column - head_column + 5) % 11
     
@@ -43,8 +51,8 @@ class Map(object):
                 if len(goose) == 0:
                     goose = backup
 
-                output.append(self.translate(goose[0]))
-                output.append(self.translate(goose[-1]))
+                output.append(self.translate(goose[0], True))
+                output.append(self.translate(goose[-1], True))
         
         # Add our own tail
         output.append(self.translate(self.observation.geese[self.player_index][-1]))
@@ -58,6 +66,11 @@ class Map(object):
         
         return False
 
+    def generate_possible_pos(self, origin):
+        (row, column) = row_col(origin, self.columns)
+
+        return [self.coord_to_abs((row - 1) % 7, column), self.coord_to_abs((row + 1) % 7, column), self.coord_to_abs(row, (column - 1) % 11), self.coord_to_abs(row, (column + 1) % 11)]
+
     def build_opponent_map(self, index):
         output = np.zeros(77) # 77 is the boardsize, thats 7x11
         opponent = self.geese[index]
@@ -66,14 +79,14 @@ class Map(object):
             return output
 
         for i in range(len(opponent) - 1):
-            output[i] = 1
+            output[opponent[i]] = 1
 
-        new_pos = [opponent[0] - 1, opponent[0] + 1, opponent[0] - self.columns, opponent[0] + self.columns]
+        new_pos = self.generate_possible_pos(opponent[0])
         food_count = 0
         possible_positions = []
 
         for pos in new_pos:
-            if pos in self.observation.food:
+            if pos in self.food:
                 food_count += 1
 
             if not self.occupied(pos):
@@ -99,6 +112,20 @@ class Map(object):
             player_map[player[i]] = 1
         
         output.append(player_map)
+
+        """for map in output:
+            import matplotlib.pyplot as plt
+            data = map.reshape(7,11)
+            fig, ax = plt.subplots()
+            # Using matshow here just because it sets the ticks up nicely. imshow is faster.
+            ax.matshow(data, cmap='seismic')
+
+            for (i, j), z in np.ndenumerate(data):
+                ax.text(j, i, '{:0.1f}'.format(z), ha='center', va='center')
+
+            plt.show()
+        """
+
         return np.concatenate(output)
             
 

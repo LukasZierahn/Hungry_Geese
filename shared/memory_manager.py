@@ -23,14 +23,16 @@ class MemoryManager(object):
         self.places = []
         self.rewards = []
 
+        self.value_loss = []
+
         self.gamma = gamma
         self.INDEX = INDEX()
 
     
-    def add_memory(self, new_memory, adjusted_reward):
+    def add_memory(self, new_memory, step_reward, mc_reward):
         old_observation, _, action, invalid_action, done, observation = new_memory
         
-        memory = [old_observation, adjusted_reward, action, invalid_action, done, observation]
+        memory = [old_observation, {"step_reward": step_reward, "mc_reward": mc_reward}, action, invalid_action, done, observation]
         self.last_episode.append(memory)
 
         if self.size != -1:
@@ -50,25 +52,17 @@ class MemoryManager(object):
 
         self.places.append(others_survived)
 
-        actions = np.array([x[self.INDEX.action] for x in new_memories])
-        print(f"survived: {survived}, others alive: {others_survived}, timesteps: {last_observation.step}")
-        for i in range(len(possible_moves)):
-            num_chosen = np.sum(actions == i)
-            print(f"{possible_moves[i]}: {num_chosen * 100 / len(actions):.2f}% ({num_chosen}), ", end="")
-        print()
-
-        adjusted_reward = 100 * (-others_survived) + survived * 100
-        #adjusted_reward = len(new_memories)
-        self.rewards.append(adjusted_reward)
+        mc_reward = 100 * (4 - others_survived) + survived * 100
+        self.rewards.append(mc_reward)
 
         self.last_episode = []
-        self.add_memory(new_memories[-1], adjusted_reward)
+        self.add_memory(new_memories[-1], mc_reward, mc_reward)
         for i in range(2, len(new_memories)):
-            adjusted_reward = adjusted_reward * self.gamma
-            self.add_memory(new_memories[-i], len(new_memories[-i][self.INDEX.observation].geese[last_observation.index]))
-        
-        return adjusted_reward
-    
+            step_reward = len(new_memories[-i][self.INDEX.observation].geese[last_observation.index])
+            mc_reward = mc_reward * self.gamma + step_reward
+
+            self.add_memory(new_memories[-i], step_reward, mc_reward)
+            
     def get_batch(self, batch_size):
         if len(self.memory) < batch_size:
             return False

@@ -48,18 +48,13 @@ class MemoryManager(object):
     def add_memories(self, new_memories):
         last_observation = new_memories[-1][self.INDEX.observation]
 
-        survived = len(last_observation.geese[last_observation.index]) != 0
-        others_survived = np.sum([len(x) != 0 for x in last_observation.geese]) - survived
-
-        self.places.append(others_survived)
-
-        mc_reward = 100 * (4 - others_survived) + survived * 100
-        self.rewards.append(mc_reward)
+        mc_reward = 0
+        self.rewards.append(len(new_memories))
 
         self.last_episode = []
         self.add_memory(new_memories[-1], mc_reward, mc_reward)
         for i in range(2, len(new_memories)):
-            step_reward = len(new_memories[-i][self.INDEX.observation].geese[last_observation.index])
+            step_reward = new_memories[-i][self.INDEX.reward]
             mc_reward = mc_reward * self.gamma + step_reward
 
             self.add_memory(new_memories[-i], step_reward, mc_reward)

@@ -23,8 +23,9 @@ class MemoryManager(object):
         self.places = []
         self.rewards = []
 
+        self.policy_loss = []
+        self.entropy_loss = []
         self.value_loss = []
-        self.loss = []
 
         self.gamma = gamma
         self.INDEX = INDEX()
@@ -53,13 +54,13 @@ class MemoryManager(object):
 
         self.places.append(others_survived)
 
-        mc_reward = 100 * (4 - others_survived) + survived * 100
+        mc_reward = 100 * (2 - others_survived) + survived * 100
         self.rewards.append(mc_reward)
 
         self.last_episode = []
         self.add_memory(new_memories[-1], mc_reward, mc_reward)
         for i in range(2, len(new_memories)):
-            step_reward = len(new_memories[-i][self.INDEX.observation].geese[last_observation.index])
+            step_reward = len(new_memories[-i][self.INDEX.observation].geese[last_observation.index]) + 10 * np.sum([len(x) != 0 for x in last_observation.geese])
             mc_reward = mc_reward * self.gamma + step_reward
 
             self.add_memory(new_memories[-i], step_reward, mc_reward)

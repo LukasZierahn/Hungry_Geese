@@ -126,6 +126,6 @@ class Map(object):
             plt.show()
         """
 
-        return np.concatenate(output)
+        return output
             
 

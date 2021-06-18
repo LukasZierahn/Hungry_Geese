@@ -11,6 +11,7 @@ def train(agent, memory_manager, optimizer, device, trainer, params):
     sampeling_count = params["sampeling_count"]
     batch_size = params["batch_size"]
     training_time = params["training_time"]
+    entropy_weight = params["entropy_weight"]
 
     batch = False
     while (not batch) and memory_manager.size != -1:
@@ -41,37 +42,27 @@ def train(agent, memory_manager, optimizer, device, trainer, params):
             policy, value = agent.model.forward(old_observation, invalid_actions)
 
             policy_losses = []
+            entropy_losses = []
             value_losses = []
+
+            # This iterates through the last episode back to front
             for k in range(len(policy)):
-                advantage = 0
-                #advantage = mc_reward[k] - value[k]
-                if done[k]:
-                    advantage = step_reward[k] - value[k]
-                    value_losses.append(F.smooth_l1_loss(value[k], step_reward[k]))
-                else:
-                    policy_next, value_next = agent.model.forward([observation[k]], [(actions[k] + 2) % 4])
-                    advantage = step_reward[k] + memory_manager.gamma * value_next[0] - value[k]
-                    value_losses.append(F.smooth_l1_loss(value[k], step_reward[k] + memory_manager.gamma * value_next[0]))
-
                 categorical = torch.distributions.Categorical(policy[k])
-
-                entropy_weight = 1000
-
-                policy_losses.append(-categorical.log_prob(actions[k]) * advantage + entropy_weight * torch.sum(policy[k] * torch.log(policy[k] + 1e-7))) 
-                #value_losses.append(F.smooth_l1_loss(value[k], mc_reward[k]))
+                
+                advantage = mc_reward[k] - value[k]
+                policy_losses.append(-categorical.log_prob(actions[k]) * advantage)
+                entropy_losses.append(torch.sum(policy[k] * torch.log(policy[k] + 1e-7)))
+                value_losses.append(F.smooth_l1_loss(value[k], mc_reward[k]))
 
 
             optimizer.zero_grad()
 
-            loss = torch.stack(policy_losses).float().sum() + torch.stack(value_losses).float().sum()
+            loss = torch.stack(policy_losses).float().sum() + entropy_weight * torch.stack(entropy_losses).float().sum() + torch.stack(value_losses).float().sum()
             #loss = torch.stack(value_losses).float().sum()
 
-            chose_percentage = np.zeros(len(possible_moves))
-            for move in range(len(possible_moves)):
-                chose_percentage[move] = np.sum(actions.cpu().numpy() == move) / len(actions)
-
+            memory_manager.policy_loss.append(torch.stack(policy_losses).mean().item())
+            memory_manager.entropy_loss.append(entropy_weight * torch.stack(entropy_losses).mean().item())
             memory_manager.value_loss.append(torch.stack(value_losses).mean().item())
-            memory_manager.loss.append(loss.item())
 
             if 0:
                 print("mc_reward", mc_reward)

@@ -8,10 +8,10 @@ kaggel = os.path.isfile("/kaggle_simulations/agent/A3C/model")
 # if you have many scripts add this line before you import them
 if kaggel:
     sys.path.append('/kaggle_simulations/agent/') 
-from A3C.agent import Agent
-from A3C.model import Model
+from DQN.agent import Agent
+from DQN.model import Model
 
-working_directory = "A3C/model"
+working_directory = "DQN/model"
 if kaggel:
     working_directory = "/kaggle_simulations/agent/" + working_directory
 
@@ -19,7 +19,7 @@ model = Model()
 model.load_state_dict(torch.load(working_directory))
 model.eval()
 
-agent_class = Agent(model, lambda x: 0, greedy=False)
+agent_class = Agent(model, lambda x: 0, greedy=True)
 
 invalid_move = None
 

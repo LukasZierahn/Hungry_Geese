@@ -3,12 +3,12 @@ import os.path
 from kaggle_environments.envs.hungry_geese.hungry_geese import Configuration, Action, row_col
 import torch
 
-kaggel = os.path.isfile("/kaggle_simulations/agent/A3C/model") 
+kaggel = os.path.isfile("/kaggle_simulations/agent/DQN/model") 
 
 # if you have many scripts add this line before you import them
 if kaggel:
     sys.path.append('/kaggle_simulations/agent/') 
-from DQN.agent import Agent
+from DQN.DQN_agent import Agent
 from DQN.model import Model
 
 working_directory = "DQN/model"
@@ -16,7 +16,7 @@ if kaggel:
     working_directory = "/kaggle_simulations/agent/" + working_directory
 
 model = Model()
-model.load_state_dict(torch.load(working_directory))
+model.load_state_dict(torch.load(working_directory, map_location="cpu"))
 model.eval()
 
 agent_class = Agent(model, lambda x: 0, greedy=True)

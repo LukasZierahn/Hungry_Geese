@@ -17,7 +17,7 @@ class Model(nn.Module):
         self.device = "cpu"
 
         self.shared = nn.Sequential(
-            nn.Linear(339, 512),
+            nn.Linear(937, 512),
             nn.ReLU(),
             nn.Linear(512, 512),
             nn.ReLU(),
@@ -57,7 +57,7 @@ class Model(nn.Module):
     def transform_input_single(self, observation, invalid_action):
         # This is a done final state and will be ignored later on
         if len(observation.geese[observation.index]) == 0:
-            return [0] * 339
+            return [0] * 937
 
         observation = Observation(observation)
 
@@ -73,10 +73,6 @@ class Model(nn.Module):
                 output.append([len(observation.geese[i])])
 
         map = Map(observation, self.config.columns)
-        for i in range(2):
-            output.append(map.translate(observation.food[i], True))
-
-        heads_tails = map.get_heads_tails()
         maps = map.build_maps()
 
         """
@@ -85,7 +81,7 @@ class Model(nn.Module):
         print("maps", maps)
         """
 
-        return np.concatenate([np.concatenate(output), np.concatenate(heads_tails), np.concatenate(maps)])
+        return np.concatenate([np.concatenate(output), np.concatenate(maps)])
         #return np.concatenate([np.concatenate(output), np.concatenate(heads_tails)])
 
 

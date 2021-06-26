@@ -37,6 +37,11 @@ def train(agent, memory_manager, optimizer, device, trainer, params):
     episode_rewards = []
     for i in range(training_time):
 
+        if i % 100 == 0:
+            torch.save(agent.model.state_dict(), f"backup/{i}_model")
+            torch.save(optimizer.state_dict(), f"backup/{i}_opzimizer")
+
+
         for episode_index in range(episode_count):
             episode_rewards.append(generate_episode(agent, memory_manager, trainer))
 

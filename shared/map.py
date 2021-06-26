@@ -11,7 +11,7 @@ class Map(object):
         self.player_head = observation.geese[self.player_index][0]
 
         self.geese = []
-        for i in range(len(observation.geese)):
+        for i in np.arange(len(observation.geese)):
             buffer = []
             for j in range(len(observation.geese[i])):
                 buffer.append(self.coord_to_abs(*self.translate(observation.geese[i][j])))
@@ -21,7 +21,7 @@ class Map(object):
 
         self.food = []
         for food in observation.food:
-            self.food.append(self.translate(food))
+            self.food.append(self.coord_to_abs(*self.translate(food)))
 
     def translate(self, position, zero_center=False):
         row, column = row_col(position, self.columns)
@@ -35,30 +35,7 @@ class Map(object):
     
     def coord_to_abs(self, row, column):
         return (row * self.columns + column) % 77
-    
-    def get_heads_tails(self):
-        output = []
-
-        backup = [38] #38 is the middle
-        for i in range(4):
-            if i != self.player_index:
-                if len(self.observation.geese[i]) != 0:
-                    backup = [self.observation.geese[i][0]]
-
-        for i in range(4):
-            if i != self.player_index:
-                goose = self.observation.geese[i]
-                if len(goose) == 0:
-                    goose = backup
-
-                output.append(self.translate(goose[0], True))
-                output.append(self.translate(goose[-1], True))
         
-        # Add our own tail
-        output.append(self.translate(self.observation.geese[self.player_index][-1]))
-
-        return output
-    
     def occupied(self, position):
         for i in range(4):
             if position in self.geese[i][:-1]:
@@ -69,42 +46,34 @@ class Map(object):
     def generate_possible_pos(self, origin):
         (row, column) = row_col(origin, self.columns)
 
-        return [self.coord_to_abs((row - 1) % 7, column), self.coord_to_abs((row + 1) % 7, column), self.coord_to_abs(row, (column - 1) % 11), self.coord_to_abs(row, (column + 1) % 11)]
+        return [self.coord_to_abs((row - 1) % 7, column), self.coord_to_abs(row, (column + 1) % 11), self.coord_to_abs((row + 1) % 7, column), self.coord_to_abs(row, (column - 1) % 11)]
 
     def build_opponent_map(self, index):
-        output = np.zeros(77) # 77 is the boardsize, thats 7x11
+        head = np.zeros(77) # 77 is the boardsize, thats 7x11
+        body = np.zeros(77)
+        tail = np.zeros(77)
         opponent = self.geese[index]
 
         if (len(opponent) == 0):
-            return output
+            return head, body, tail
 
-        for i in range(len(opponent) - 1):
-            output[opponent[i]] = 1
+        head[opponent[0]] = 1
 
-        new_pos = self.generate_possible_pos(opponent[0])
-        food_count = 0
-        possible_positions = []
+        for i in range(len(opponent)):
+            body[opponent[i]] = 1
 
-        for pos in new_pos:
-            if pos in self.food:
-                food_count += 1
+        tail[opponent[-1]] = 1
 
-            if not self.occupied(pos):
-                possible_positions.append(pos)
-        
-        if (len(possible_positions) != 0):
-            possible_positions = np.array(possible_positions) % 77
-            output[opponent[-1]] = food_count / len(possible_positions)
-            output[possible_positions] += 1 / len(possible_positions)
-
-        return output
+        return head, body, tail
     
     def build_maps(self):
         output = []
 
-        for i in range(4):
+        opponent_order = np.arange(4)
+        np.random.shuffle(opponent_order)
+        for i in opponent_order:
             if i != self.player_index:
-                output.append(self.build_opponent_map(i))
+                output.extend(self.build_opponent_map(i))
         
         player_map = np.zeros(77)
         player = self.geese[self.player_index]
@@ -112,6 +81,16 @@ class Map(object):
             player_map[player[i]] = 1
         
         output.append(player_map)
+
+        player_tail_map = np.zeros(77)
+        player_tail_map[player[-1]] = 1
+        output.append(player_tail_map)
+
+        # Food
+        food = np.zeros(77)
+        for food_pos in self.food:
+            food[food_pos] = 1
+        output.append(food)
 
         """for map in output:
             import matplotlib.pyplot as plt

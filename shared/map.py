@@ -43,6 +43,19 @@ class Map(object):
         
         return False
 
+    def get_suicide(self, observation, invalid_action):
+        suicide = np.zeros(4, dtype=np.bool)
+
+        map = Map(observation, 11)
+        positions = map.generate_possible_pos(38) #38 is the middle, i. e. the player head
+        for i in range(len(positions)):
+            suicide[i] = map.occupied(positions[i])
+
+        suicide[invalid_action] = True
+
+        return suicide
+
+
     def generate_possible_pos(self, origin):
         (row, column) = row_col(origin, self.columns)
 

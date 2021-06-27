@@ -19,7 +19,7 @@ model = Model()
 model.load_state_dict(torch.load(working_directory, map_location="cpu"))
 model.eval()
 
-agent_class = Agent(model, lambda x: 0, greedy=True)
+agent_class = Agent(model, lambda x: 0, greedy=True, training_wheels=True)
 
 invalid_move = None
 

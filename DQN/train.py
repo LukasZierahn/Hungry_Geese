@@ -12,7 +12,7 @@ import torch.nn.functional as F
 from shared.generate_episode import generate_episode, possible_moves
 
 def train(agent, memory_manager, optimizer, device, trainer, params):
-    sampeling_count = params["sampeling_count"]
+    sampling_count = params["sampling_count"]
     episode_count = params["episode_count"]
     batch_size = params["batch_size"]
     training_time = params["training_time"]
@@ -37,7 +37,7 @@ def train(agent, memory_manager, optimizer, device, trainer, params):
     episode_rewards = []
     for i in range(training_time):
 
-        if i % 100 == 0:
+        if i % 100 == 0 or i == (training_time - 1):
             torch.save(agent.model.state_dict(), f"backup/{i}_model")
             torch.save(optimizer.state_dict(), f"backup/{i}_opzimizer")
 
@@ -46,7 +46,7 @@ def train(agent, memory_manager, optimizer, device, trainer, params):
             episode_rewards.append(generate_episode(agent, memory_manager, trainer))
 
         loss_this_sample = 0
-        for j in range(sampeling_count):
+        for j in range(sampling_count):
             batch = memory_manager.get_batch(batch_size)
             #batch = memory_manager.last_episode
 
@@ -76,7 +76,7 @@ def train(agent, memory_manager, optimizer, device, trainer, params):
             loss.backward()
             optimizer.step()
         
-        memory_manager.policy_loss.append(loss_this_sample / sampeling_count)
+        memory_manager.policy_loss.append(loss_this_sample / sampling_count)
 
         if target_update < 1:
             updated_state_dict = {}

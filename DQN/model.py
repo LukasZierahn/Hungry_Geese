@@ -15,6 +15,7 @@ class Model(nn.Module):
 
         self.config = None
         self.device = "cpu"
+        self.flipping = False
 
         self.shared = nn.Sequential(
             nn.Linear(937, 512),
@@ -54,25 +55,31 @@ class Model(nn.Module):
     def set_config(self, config_dict):
         self.config = Configuration(config_dict)
 
-    def transform_input_single(self, observation, invalid_action):
+    def transform_input_single(self, observation, invalid_action, flips):
         # This is a done final state and will be ignored later on
         if len(observation.geese[observation.index]) == 0:
             return [0] * 937
 
+        opponent_order = np.arange(4)
+        np.random.shuffle(opponent_order)
+
         observation = Observation(observation)
+        map = Map(observation, self.config.columns, self.config.rows, flips[0], flips[1], opponent_order)
 
         output = []
         output.append([observation.step])
-        output.append([invalid_action == 0, invalid_action == 1, invalid_action == 2, invalid_action == 3])
+
+        adjusted_invalid_action = map.transform_move_wrt_flipping(invalid_action)
+        output.append([adjusted_invalid_action == 0, adjusted_invalid_action == 1, adjusted_invalid_action == 2, adjusted_invalid_action == 3])
         output.append([(40 - observation.step % 40) / 40])
         output.append([len(observation.geese[observation.index])])
 
-        for i in range(4):
+
+        for i in opponent_order:
             if i != observation.index:
                 output.append([len(observation.geese[i]) == 0])
                 output.append([len(observation.geese[i])])
 
-        map = Map(observation, self.config.columns)
         maps = map.build_maps()
 
         """
@@ -85,19 +92,30 @@ class Model(nn.Module):
         #return np.concatenate([np.concatenate(output), np.concatenate(heads_tails)])
 
 
-    def transform_input(self, observations, invalid_actions):
+    def transform_input(self, observations, invalid_actions, flips):
         output = []
         for i in range(len(observations)):
-            output.append(self.transform_input_single(observations[i], invalid_actions[i]))
+            output.append(self.transform_input_single(observations[i], invalid_actions[i], flips[i]))
         
         return torch.tensor(output, device=self.device, dtype=torch.float)
 
     def forward(self, observation, invalid_actions):
-        transformed_input = self.transform_input(observation, invalid_actions)
+        flips = np.zeros((len(observation), 2), dtype=np.bool)
+        if self.flipping:
+            flips = np.random.choice([True, False], size=(len(observation), 2))
+
+        transformed_input = self.transform_input(observation, invalid_actions, flips)
         out = self.shared(transformed_input)
 
         advantages = self.advantages(out)
         values = self.values(out)
+
+        for i in range(len(advantages)):
+            if flips[i][0]:
+                advantages[i][1], advantages[i][3] = advantages[i][3], advantages[i][1]
+
+            if flips[i][1]:
+                advantages[i][0], advantages[i][2] = advantages[i][2], advantages[i][0]
 
         means = advantages.mean(dim=1)
 

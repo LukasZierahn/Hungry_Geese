@@ -1,17 +1,7 @@
 from kaggle_environments import make
+from kaggle_environments.helpers import Observation
 import numpy as np
-
-
-def get_place_from_index(index, inp):
-    for i in range(len(inp)):
-        if len(inp[i][0]["observation"]["geese"][index]) == 0:
-            survived = len(inp[i][0]["observation"]["geese"][index]) != 0
-            others_survived = np.sum([len(x) != 0 for x in inp[i][0]["observation"]["geese"]]) - survived
-            return others_survived
-
-    survived = len(inp[-1][0]["observation"]["geese"][index]) != 0
-    others_survived = np.sum([len(x) != 0 for x in inp[-1][0]["observation"]["geese"]]) - survived
-    return others_survived
+from shared.memory_manager import MemoryManager
 
 def evaluate_agents(agents, num_episodes=1000, debug=True):
     env = make("hungry_geese", debug=False)
@@ -23,7 +13,8 @@ def evaluate_agents(agents, num_episodes=1000, debug=True):
             print(f"\rEvaluating: {i}/{100 * i/num_episodes:.2f}", end="")
         states = env.run(agents)
 
-        results.append(get_place_from_index(0, states))
+        place = MemoryManager.get_place([x[0]["observation"] for x in states])[0]
+        results.append(place)
     return results
 
 def evaluate_agent(agent, opponent, num_episodes=1000):

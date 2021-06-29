@@ -39,7 +39,7 @@ def train(agent, memory_manager, optimizer, device, trainer, params):
 
         if i % 100 == 0 or i == (training_time - 1):
             torch.save(agent.model.state_dict(), f"backup/{i}_model")
-            torch.save(optimizer.state_dict(), f"backup/{i}_opzimizer")
+            torch.save(optimizer.state_dict(), f"backup/{i}_optimizer")
 
 
         for episode_index in range(episode_count):

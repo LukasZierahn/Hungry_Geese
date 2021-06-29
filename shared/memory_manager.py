@@ -2,11 +2,12 @@ import numpy as np
 import random
 
 from kaggle_environments.envs.hungry_geese.hungry_geese import Action
+from numpy.lib.function_base import place
 
 possible_moves = [Action.NORTH.name, Action.EAST.name, Action.SOUTH.name, Action.WEST.name]
 
 class INDEX(object):
-    observation = 0
+    observation         = 0
     reward              = 1
     action              = 2
     invalid_action      = 3
@@ -45,22 +46,45 @@ class MemoryManager(object):
                 self.memory_position = (self.memory_position + 1) % self.size
             
 
+    @staticmethod
+    def get_place(episode):
+        places = np.zeros(4) - 1
+        current_place = 0
+
+        for i in reversed(range(len(episode))):
+            geese = episode[i]["geese"]
+
+            lengths = np.where(places == -1, [len(x) for x in geese], np.zeros(4))
+            sorted_lengths = np.argsort(lengths)
+            
+            for j in reversed(range(len(sorted_lengths))):
+                current_agent = sorted_lengths[j]
+
+                if lengths[current_agent] == 0:
+                    break
+
+                places[current_agent] = current_place
+                if j != 0 and lengths[sorted_lengths[j - 1]] != lengths[current_agent]:
+                    current_place += np.sum(lengths == lengths[current_agent])
+
+            if all(places != -1):
+                return places
+        
+        return places
 
     def add_memories(self, new_memories):
-        last_observation = new_memories[-1][self.INDEX.next_observation]
+        agent_index = new_memories[-1][self.INDEX.next_observation].index
 
-        survived = len(last_observation.geese[last_observation.index]) != 0
-        others_survived = np.sum([len(x) != 0 for x in last_observation.geese]) - survived
+        place = MemoryManager.get_place([x[self.INDEX.next_observation] for x in new_memories])[agent_index]
+        self.places.append(place)
 
-        self.places.append(others_survived)
-
-        mc_reward = 100 * (3 - others_survived) + survived * 100
+        mc_reward = 100 * (3 - place)
 
         self.last_episode = []
         self.add_memory(new_memories[-1], mc_reward, mc_reward)
         for i in range(2, len(new_memories)):
-            got_bigger = len(new_memories[-i][self.INDEX.next_observation].geese[last_observation.index]) > len(new_memories[-i][self.INDEX.observation].geese[last_observation.index])
-            step_reward = 0.25 * len(new_memories[-i][self.INDEX.next_observation].geese[last_observation.index]) + got_bigger * 10
+            got_bigger = len(new_memories[-i][self.INDEX.next_observation].geese[agent_index]) > len(new_memories[-i][self.INDEX.observation].geese[agent_index])
+            step_reward = 0.25 * len(new_memories[-i][self.INDEX.next_observation].geese[agent_index]) + got_bigger * 10
             mc_reward = mc_reward * self.gamma + step_reward
 
             self.add_memory(new_memories[-i], step_reward, mc_reward)

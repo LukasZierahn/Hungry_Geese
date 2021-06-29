@@ -3,8 +3,14 @@ import numpy as np
 from kaggle_environments.envs.hungry_geese.hungry_geese import row_col
 
 class Map(object):
-    def __init__(self, observation, columns):
+    def __init__(self, observation, columns=11, rows=7, flipped_left_right=False, flipped_up_down=False, opponent_order=np.arange(4)):
         self.columns = columns
+        self.rows = rows
+
+        self.flipped_left_right = flipped_left_right
+        self.flipped_up_down = flipped_up_down
+
+        self.opponent_order = opponent_order
 
         self.observation = observation
         self.player_index = observation.index
@@ -23,15 +29,28 @@ class Map(object):
         for food in observation.food:
             self.food.append(self.coord_to_abs(*self.translate(food)))
 
-    def translate(self, position, zero_center=False):
+    def transform_move_wrt_flipping(self, move):
+        move = 1 if move == 3 and self.flipped_left_right else move
+        move = 3 if move == 1 and self.flipped_left_right else move
+
+        move = 0 if move == 2 and self.flipped_up_down else move
+        move = 2 if move == 0 and self.flipped_up_down else move
+
+        return move
+
+    def translate(self, position):
         row, column = row_col(position, self.columns)
 
         head_row, head_column = row_col(self.player_head, self.columns)
 
-        if zero_center:
-            return (row - head_row + 3) % 7 - 3, (column - head_column + 5) % 11 - 5
 
-        return (row - head_row + 3) % 7, (column - head_column + 5) % 11
+        row = (row - head_row + 3) % self.rows
+        column = (column - head_column + 5) % self.columns
+
+        row += 2 * (3 - row) if self.flipped_up_down else 0
+        column += 2 * (5 - column) if self.flipped_left_right else 0
+
+        return row, column
     
     def coord_to_abs(self, row, column):
         return (row * self.columns + column) % 77
@@ -82,9 +101,7 @@ class Map(object):
     def build_maps(self):
         output = []
 
-        opponent_order = np.arange(4)
-        np.random.shuffle(opponent_order)
-        for i in opponent_order:
+        for i in self.opponent_order:
             if i != self.player_index:
                 output.extend(self.build_opponent_map(i))
         

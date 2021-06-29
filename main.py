@@ -18,6 +18,7 @@ if kaggel:
 model = Model()
 model.load_state_dict(torch.load(working_directory, map_location="cpu"))
 model.eval()
+model.flipping = False
 
 agent_class = Agent(model, lambda x: 0, greedy=True, training_wheels=True)
 

@@ -4,6 +4,10 @@ from DQN.model import Model
 
 import time
 
+import os
+
+import matplotlib.pyplot as plt
+
 import torch
 torch.manual_seed(42)
 
@@ -12,6 +16,9 @@ import torch.nn.functional as F
 from shared.generate_episode import generate_episode, possible_moves
 
 def train(agent, memory_manager, optimizer, device, trainer, params):
+    backup_name = f"backup_{len(os.listdir('backup'))}"
+    os.mkdir(f"backup/{backup_name}")
+
     sampling_count = params["sampling_count"]
     episode_count = params["episode_count"]
     batch_size = params["batch_size"]
@@ -33,13 +40,33 @@ def train(agent, memory_manager, optimizer, device, trainer, params):
         generate_episode(agent, memory_manager, trainer)
         print(f"\r filling memory: {len(memory_manager.memory)}/{100 * len(memory_manager.memory) / memory_manager.size:.2f}%", end="")
 
+    filled_memory_index = len(memory_manager.rewards)
+
     start_time = time.time()
     episode_rewards = []
     for i in range(training_time):
 
         if i % 100 == 0 or i == (training_time - 1):
-            torch.save(agent.model.state_dict(), f"backup/{i}_model")
-            torch.save(optimizer.state_dict(), f"backup/{i}_optimizer")
+            torch.save(agent.model.state_dict(), f"backup/{backup_name}/{i}_model")
+            torch.save(optimizer.state_dict(), f"backup/{backup_name}/{i}_optimizer")
+
+            N = 100
+            plt.plot(np.convolve(memory_manager.rewards, np.ones(N)/N, mode='valid'))
+            plt.gca().axvline(filled_memory_index + N/2, color="red")
+            plt.savefig(f"backup/{backup_name}/rewards.png", dpi=300)
+            plt.clf()
+
+            plt.plot(np.convolve(memory_manager.places, np.ones(N)/N, mode='valid'))
+            plt.gca().axvline(filled_memory_index + N/2, color="red")
+            plt.savefig(f"backup/{backup_name}/places.png", dpi=300)
+            plt.clf()
+
+
+            if len(memory_manager.policy_loss) >= 100:
+                plt.plot(np.convolve(memory_manager.policy_loss, np.ones(N)/N, mode='valid'))
+                plt.savefig(f"backup/{backup_name}/loss.png", dpi=300)
+                plt.clf()
+
 
 
         for episode_index in range(episode_count):

@@ -23,9 +23,11 @@ class Agent(object):
         
         if self.training_wheels:
             suicides = self.get_illegal_moves(observation, invalid_action)
-            for i in range(len(suicides)):
-                if suicides[i]:
-                    advantages[i] = -np.inf
+
+            if not all(suicides):
+                for i in range(len(suicides)):
+                    if suicides[i]:
+                        advantages[i] = -np.inf
 
         return torch.argmax(advantages)
 
@@ -39,7 +41,7 @@ class Agent(object):
                     suicides = self.get_illegal_moves(observation, invalid_action)
                 
                 if len(suicides) != 0 and all(suicides):
-                    return np.random.choice(4)
+                    suicides = []
 
                 action = None
                 while action == None or action == invalid_action or action in suicides:

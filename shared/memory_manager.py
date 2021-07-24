@@ -70,6 +70,7 @@ class MemoryManager(object):
             if all(places != -1):
                 return places
         
+        places = np.where(places == -1, 4, places)
         return places
 
     def add_memories(self, new_memories):
@@ -82,7 +83,8 @@ class MemoryManager(object):
 
         self.last_episode = []
         self.add_memory(new_memories[-1], mc_reward, mc_reward)
-        for i in range(2, len(new_memories)):
+
+        for i in range(2, len(new_memories) + 1):
             got_bigger = len(new_memories[-i][self.INDEX.next_observation].geese[agent_index]) > len(new_memories[-i][self.INDEX.observation].geese[agent_index])
             step_reward = 0.25 * len(new_memories[-i][self.INDEX.next_observation].geese[agent_index]) + got_bigger * 10
             mc_reward = mc_reward * self.gamma + step_reward

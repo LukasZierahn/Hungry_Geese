@@ -17,8 +17,19 @@ class Model(nn.Module):
         self.device = "cpu"
         self.flipping = False
 
+        self.map_preprocessing = nn.Sequential(
+            nn.Linear(231, 256),
+            nn.ReLU(),
+            nn.Linear(256, 256),
+            nn.ReLU(),
+            nn.Linear(256, 256),
+            nn.ReLU(),
+            nn.Linear(256, 256),
+            nn.ReLU(),
+            )
+
         self.shared = nn.Sequential(
-            nn.Linear(937, 512),
+            nn.Linear(1012, 512),
             nn.ReLU(),
             nn.Linear(512, 512),
             nn.ReLU(),
@@ -58,7 +69,7 @@ class Model(nn.Module):
     def transform_input_single(self, observation, invalid_action, flips):
         # This is a done final state and will be ignored later on
         if len(observation.geese[observation.index]) == 0:
-            return [0] * 937
+            return [0] * 244, [[0] * 231, [0] * 231, [0] * 231]
 
         opponent_order = np.arange(4)
         np.random.shuffle(opponent_order)
@@ -80,7 +91,7 @@ class Model(nn.Module):
                 output.append([len(observation.geese[i]) == 0])
                 output.append([len(observation.geese[i])])
 
-        maps = map.build_maps()
+        maps, opponent_maps = map.build_maps()
 
         """
         print("output", output)
@@ -88,23 +99,32 @@ class Model(nn.Module):
         print("maps", maps)
         """
 
-        return np.concatenate([np.concatenate(output), np.concatenate(maps)])
-        #return np.concatenate([np.concatenate(output), np.concatenate(heads_tails)])
+        return np.concatenate([np.concatenate(output), np.concatenate(maps)]), np.concatenate(opponent_maps, axis=1)
 
 
     def transform_input(self, observations, invalid_actions, flips):
         output = []
+        opponent_maps =  []
         for i in range(len(observations)):
-            output.append(self.transform_input_single(observations[i], invalid_actions[i], flips[i]))
-        
-        return torch.tensor(output, device=self.device, dtype=torch.float)
+            single_inp, opp_maps = self.transform_input_single(observations[i], invalid_actions[i], flips[i])
+            output.append(single_inp)
+            opponent_maps.append(opp_maps)
+
+        return torch.tensor(output, device=self.device, dtype=torch.float), torch.tensor(opponent_maps, device=self.device, dtype=torch.float)
 
     def forward(self, observation, invalid_actions):
         flips = np.zeros((len(observation), 2), dtype=np.bool)
         if self.flipping:
             flips = np.random.choice([True, False], size=(len(observation), 2))
 
-        transformed_input = self.transform_input(observation, invalid_actions, flips)
+        transformed_input, opponent_maps = self.transform_input(observation, invalid_actions, flips)
+
+        latent_maps = []
+        for i in range(len(opponent_maps[0])):
+            latent_maps.append(self.map_preprocessing(opponent_maps[:, i]))
+
+        transformed_input = torch.cat([transformed_input, *latent_maps], dim=1)
+
         out = self.shared(transformed_input)
 
         advantages = self.advantages(out)

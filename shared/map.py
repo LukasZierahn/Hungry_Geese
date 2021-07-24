@@ -89,7 +89,8 @@ class Map(object):
         if (len(opponent) == 0):
             return head, body, tail
 
-        head[opponent[0]] = 1
+        for pos in self.generate_possible_pos(opponent[0]):
+            head[pos] = 1
 
         for i in range(len(opponent)):
             body[opponent[i]] = 1
@@ -100,10 +101,11 @@ class Map(object):
     
     def build_maps(self):
         output = []
+        opponent_maps = []
 
         for i in self.opponent_order:
             if i != self.player_index:
-                output.extend(self.build_opponent_map(i))
+                opponent_maps.append(self.build_opponent_map(i))
         
         player_map = np.zeros(77)
         player = self.geese[self.player_index]
@@ -135,6 +137,6 @@ class Map(object):
             plt.show()
         """
 
-        return output
+        return output, opponent_maps
             
 

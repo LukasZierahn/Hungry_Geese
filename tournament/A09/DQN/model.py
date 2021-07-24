@@ -1,7 +1,7 @@
 from matplotlib.pyplot import axis
 import numpy as np
 
-from shared.map import Map
+from tournament.A09.shared.map import Map
 
 import torch
 import torch.nn as nn

@@ -8,8 +8,8 @@ kaggel = os.path.isfile("/kaggle_simulations/agent/DQN/model")
 # if you have many scripts add this line before you import them
 if kaggel:
     sys.path.append('/kaggle_simulations/agent/') 
-from DQN.DQN_agent import Agent
-from DQN.model import Model
+from tournament.A09.DQN.DQN_agent import Agent
+from tournament.A09.DQN.model import Model
 
 working_directory = "tournament/A09/DQN/model"
 if kaggel:
